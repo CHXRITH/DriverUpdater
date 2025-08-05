@@ -1,13 +1,13 @@
 <#
 .SYNOPSIS
-    An advanced, modern GUI for Windows driver management featuring a top icon-based navigation bar.
+    An advanced, modern GUI for Windows driver management featuring a minimalist, icon-only top navigation bar.
 .DESCRIPTION
     A comprehensive, self-contained PowerShell script with a rich, dark-themed WPF user interface.
-    This version replaces the standard tabs with a modern icon toolbar for navigation. It provides tools 
-    to find and install driver updates, view/back up drivers, and see system information.
+    This version features a clean, icon-only toolbar for main navigation, with functionality revealed
+    by tooltips. It provides tools to find/install updates, view/back up drivers, and see system info.
 .NOTES
     Author: Your Name / AI Assistant
-    Version: 3.5 (Top Navigation UI Edition)
+    Version: 3.6 (Icon-Only Navigation Edition)
     Requires: PowerShell 5.1+ on Windows 10/11.
     MUST be run as Administrator for full functionality.
 
@@ -41,7 +41,7 @@ function Start-DriverTool {
     [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Advanced Driver Tool v3.5" Height="700" Width="950" MinHeight="600" MinWidth="800"
+        Title="Advanced Driver Tool v3.6" Height="700" Width="950" MinHeight="600" MinWidth="800"
         WindowStartupLocation="CenterScreen" WindowStyle="SingleBorderWindow"
         Background="#FF2D2D30">
     <Window.Resources>
@@ -52,13 +52,12 @@ function Start-DriverTool {
         <SolidColorBrush x:Key="TextColor" Color="#FFF1F1F1"/>
         <SolidColorBrush x:Key="FadedTextColor" Color="#FF9E9E9E"/>
 
-        <!-- Style for the main Navigation RadioButtons -->
+        <!-- Style for the main Navigation RadioButtons (Icon-Only) -->
         <Style x:Key="NavigationRadioButtonStyle" TargetType="RadioButton">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{StaticResource FadedTextColor}"/>
-            <Setter Property="Padding" Value="10,15"/>
+            <Setter Property="Padding" Value="12"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FontSize" Value="12"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
@@ -69,17 +68,13 @@ function Start-DriverTool {
                 </Setter.Value>
             </Setter>
             <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Foreground" Value="{StaticResource TextColor}"/>
-                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="{StaticResource TextColor}"/></Trigger>
                 <Trigger Property="IsChecked" Value="True">
                     <Setter Property="Foreground" Value="{StaticResource TextColor}"/>
                     <Setter Property="Template">
                          <Setter.Value>
                             <ControlTemplate TargetType="RadioButton">
-                                <Border Background="#40007ACC" Padding="{TemplateBinding Padding}" BorderBrush="{StaticResource AccentColor}" BorderThickness="0,0,0,3">
-                                    <ContentPresenter/>
-                                </Border>
+                                <Border Background="#40007ACC" Padding="{TemplateBinding Padding}" BorderBrush="{StaticResource AccentColor}" BorderThickness="0,0,0,3"><ContentPresenter/></Border>
                             </ControlTemplate>
                         </Setter.Value>
                     </Setter>
@@ -87,28 +82,8 @@ function Start-DriverTool {
             </Style.Triggers>
         </Style>
 
-        <!-- Style for ToolBar Buttons -->
-        <Style x:Key="ToolBarButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{StaticResource TextColor}"/>
-            <Setter Property="Padding" Value="8"/><Setter Property="Margin" Value="2"/>
-            <Setter Property="BorderThickness" Value="1"/><Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" CornerRadius="3">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#FF555555"/></Trigger>
-                <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="#FF6A6A6A"/></Trigger>
-            </Style.Triggers>
-        </Style>
-        
-        <Style TargetType="ToolBarTray"><Setter Property="Background" Value="{StaticResource BgColor}"/></Style>
+        <Style x:Key="ToolBarButtonStyle" TargetType="Button"><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{StaticResource TextColor}"/><Setter Property="Padding" Value="8"/><Setter Property="Margin" Value="2"/><Setter Property="BorderThickness" Value="1"/><Setter Property="BorderBrush" Value="Transparent"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" CornerRadius="3"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border></ControlTemplate></Setter.Value></Setter><Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#FF555555"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="#FF6A6A6A"/></Trigger></Style.Triggers></Style>
+        <Style TargetType="ToolBarTray"><Setter Property="Background" Value="{StaticResource PrimaryBgColor}"/></Style>
         <Style TargetType="ToolBar"><Setter Property="Background" Value="{StaticResource PrimaryBgColor}"/></Style>
         <Style TargetType="DataGrid"><Setter Property="Background" Value="{StaticResource PrimaryBgColor}"/><Setter Property="Foreground" Value="{StaticResource TextColor}"/><Setter Property="BorderBrush" Value="#FF555555"/><Setter Property="HorizontalGridLinesBrush" Value="#FF555555"/><Setter Property="VerticalGridLinesBrush" Value="#FF555555"/></Style>
         <Style x:Key="DefaultButtonStyle" TargetType="Button"><Setter Property="Background" Value="{StaticResource AccentColor}"/><Setter Property="Foreground" Value="White"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="12,8"/><Setter Property="FontWeight" Value="Bold"/><Setter Property="Cursor" Value="Hand"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="3"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border></ControlTemplate></Setter.Value></Setter><Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#FF005A9E"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter Property="Background" Value="#FF555555"/><Setter Property="Foreground" Value="#FF999999"/></Trigger></Style.Triggers></Style>
@@ -124,17 +99,17 @@ function Start-DriverTool {
         <!-- Main Navigation Bar -->
         <Border Grid.Row="0" Background="{StaticResource PrimaryBgColor}" BorderBrush="#FF555555" BorderThickness="0,0,0,1">
             <StackPanel Orientation="Horizontal">
-                <RadioButton x:Name="NavUpdates" GroupName="MainNavigate" IsChecked="True" Style="{StaticResource NavigationRadioButtonStyle}">
-                    <StackPanel Orientation="Horizontal"><TextBlock FontFamily="Segoe MDL2 Assets" FontSize="18" Text="&#xE777;" VerticalAlignment="Center"/><TextBlock Text="Update Center" Margin="10,0,0,0" VerticalAlignment="Center"/></StackPanel>
+                <RadioButton x:Name="NavDrivers" GroupName="MainNavigate" IsChecked="True" ToolTip="Driver Manager" Style="{StaticResource NavigationRadioButtonStyle}">
+                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="20" Text="&#xE772;" VerticalAlignment="Center"/>
                 </RadioButton>
-                <RadioButton x:Name="NavDrivers" GroupName="MainNavigate" Style="{StaticResource NavigationRadioButtonStyle}">
-                    <StackPanel Orientation="Horizontal"><TextBlock FontFamily="Segoe MDL2 Assets" FontSize="18" Text="&#xE772;" VerticalAlignment="Center"/><TextBlock Text="Driver Manager" Margin="10,0,0,0" VerticalAlignment="Center"/></StackPanel>
+                <RadioButton x:Name="NavUpdates" GroupName="MainNavigate" ToolTip="Update Center" Style="{StaticResource NavigationRadioButtonStyle}">
+                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="20" Text="&#xE777;" VerticalAlignment="Center"/>
                 </RadioButton>
-                <RadioButton x:Name="NavInfo" GroupName="MainNavigate" Style="{StaticResource NavigationRadioButtonStyle}">
-                    <StackPanel Orientation="Horizontal"><TextBlock FontFamily="Segoe MDL2 Assets" FontSize="18" Text="&#xE946;" VerticalAlignment="Center"/><TextBlock Text="System Info" Margin="10,0,0,0" VerticalAlignment="Center"/></StackPanel>
+                <RadioButton x:Name="NavInfo" GroupName="MainNavigate" ToolTip="System Info" Style="{StaticResource NavigationRadioButtonStyle}">
+                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="20" Text="&#xE946;" VerticalAlignment="Center"/>
                 </RadioButton>
-                 <RadioButton x:Name="NavAbout" GroupName="MainNavigate" Style="{StaticResource NavigationRadioButtonStyle}">
-                    <StackPanel Orientation="Horizontal"><TextBlock FontFamily="Segoe MDL2 Assets" FontSize="18" Text="&#xE713;" VerticalAlignment="Center"/><TextBlock Text="Settings &amp; About" Margin="10,0,0,0" VerticalAlignment="Center"/></StackPanel>
+                 <RadioButton x:Name="NavAbout" GroupName="MainNavigate" ToolTip="Settings &amp; About" Style="{StaticResource NavigationRadioButtonStyle}">
+                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="20" Text="&#xE713;" VerticalAlignment="Center"/>
                 </RadioButton>
             </StackPanel>
         </Border>
@@ -143,16 +118,16 @@ function Start-DriverTool {
         <Grid Grid.Row="1" x:Name="ContentArea">
         
             <!-- Update Center View -->
-            <Grid x:Name="ViewUpdates" Visibility="Visible">
+            <Grid x:Name="ViewUpdates" Visibility="Collapsed">
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                 <ToolBarTray Grid.Row="0"><ToolBar><Button x:Name="ScanButton" ToolTip="Scan for Updates" Style="{StaticResource ToolBarButtonStyle}"><TextBlock FontFamily="Segoe MDL2 Assets" FontSize="20" Text="&#xE721;"/></Button><Button x:Name="InstallButton" IsEnabled="False" ToolTip="Install Selected Updates" Style="{StaticResource ToolBarButtonStyle}"><StackPanel Orientation="Horizontal"><TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE896;" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="Install Selected"/></StackPanel></Button><Separator/><CheckBox x:Name="SelectAllCheckBox" Content="Select All/None" Foreground="{StaticResource TextColor}" VerticalAlignment="Center" Margin="10,0,0,0"/></ToolBar></ToolBarTray>
                 <DataGrid x:Name="UpdateDataGrid" Grid.Row="1" Margin="5" AutoGenerateColumns="False" IsReadOnly="True"><DataGrid.Columns><DataGridTemplateColumn Header="Install" Width="SizeToCells"><DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn><DataGridTextColumn Header="Driver Name" Binding="{Binding Title}" Width="*"/><DataGridTextColumn Header="Size (MB)" Binding="{Binding SizeMB}" Width="Auto"/><DataGridTextColumn Header="KB Article" Binding="{Binding KB}" Width="Auto"/></DataGrid.Columns></DataGrid>
             </Grid>
             
             <!-- Driver Manager View -->
-            <Grid x:Name="ViewDrivers" Visibility="Collapsed">
+            <Grid x:Name="ViewDrivers" Visibility="Visible">
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                <ToolBarTray Grid.Row="0"><ToolBar><Button x:Name="ListDriversButton" ToolTip="List Installed Drivers" Style="{StaticResource ToolBarButtonStyle}"><TextBlock FontFamily="Segoe MDL2 Assets" FontSize="20" Text="&#xE71D;"/></Button><Button x:Name="BackupDriversButton" IsEnabled="False" ToolTip="Backup All 3rd-Party Drivers" Style="{StaticResource ToolBarButtonStyle}"><StackPanel Orientation="Horizontal"><TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE790;" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="Backup Drivers"/></StackPanel></Button><Separator/><TextBlock Text="Filter:" Foreground="{StaticResource TextColor}" VerticalAlignment="Center" Margin="10,0,5,0"/><TextBox x:Name="FilterTextBox" Width="200" VerticalAlignment="Center" Background="#FF555555" Foreground="White" BorderThickness="1" BorderBrush="#FF6B6B6B"/></ToolBar></ToolBarTray>
+                <ToolBarTray Grid.Row="0"><ToolBar><Button x:Name="ListDriversButton" ToolTip="Refresh Driver List" Style="{StaticResource ToolBarButtonStyle}"><TextBlock FontFamily="Segoe MDL2 Assets" FontSize="20" Text="&#xE72C;"/></Button><Button x:Name="BackupDriversButton" IsEnabled="False" ToolTip="Backup All 3rd-Party Drivers" Style="{StaticResource ToolBarButtonStyle}"><StackPanel Orientation="Horizontal"><TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE790;" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="Backup Drivers"/></StackPanel></Button><Separator/><TextBlock Text="Filter:" Foreground="{StaticResource TextColor}" VerticalAlignment="Center" Margin="10,0,5,0"/><TextBox x:Name="FilterTextBox" Width="200" VerticalAlignment="Center" Background="#FF555555" Foreground="White" BorderThickness="1" BorderBrush="#FF6B6B6B"/></ToolBar></ToolBarTray>
                 <DataGrid x:Name="DriverManagerDataGrid" Grid.Row="1" Margin="5" AutoGenerateColumns="False" IsReadOnly="True"><DataGrid.Columns><DataGridTextColumn Header="Driver" Binding="{Binding FriendlyName}" Width="*"/><DataGridTextColumn Header="Manufacturer" Binding="{Binding Manufacturer}" Width="200"/><DataGridTextColumn Header="Version" Binding="{Binding DriverVersion}" Width="150"/><DataGridTextColumn Header="Date" Binding="{Binding DriverDate, StringFormat={}{0:yyyy-MM-dd}}" Width="100"/></DataGrid.Columns></DataGrid>
             </Grid>
 
@@ -163,7 +138,7 @@ function Start-DriverTool {
 
             <!-- Settings & About View -->
             <Grid x:Name="ViewAbout" Visibility="Collapsed">
-                <StackPanel Margin="25"><TextBlock Text="Utilities" FontSize="18" FontWeight="Bold" Foreground="White" Margin="0,0,0,10"/><Button x:Name="ClearCacheButton" Content="Clear Windows Update Cache" Style="{StaticResource DefaultButtonStyle}" HorizontalAlignment="Left" Margin="0,0,0,20"/><TextBlock Text="About" FontSize="18" FontWeight="Bold" Foreground="White" Margin="0,10,0,10"/><TextBlock TextWrapping="Wrap" Foreground="{StaticResource TextColor}" LineHeight="20"><Run FontWeight="Bold">Advanced Driver Tool v3.5</Run><LineBreak/>A modern, all-in-one utility for managing your PC's drivers. This tool safely uses the official Windows Update service to find and install WHQL-certified drivers.<LineBreak/><LineBreak/><Run FontWeight="Bold">Features:</Run><LineBreak/>- Scan for and install driver updates.<LineBreak/>- View, filter, and sort all installed third-party drivers.<LineBreak/>- Back up drivers to an external location, ideal for OS reinstalls.<LineBreak/>- View detailed system hardware information.<LineBreak/>- Run as Administrator for full functionality.</TextBlock></StackPanel>
+                <StackPanel Margin="25"><TextBlock Text="Utilities" FontSize="18" FontWeight="Bold" Foreground="White" Margin="0,0,0,10"/><Button x:Name="ClearCacheButton" Content="Clear Windows Update Cache" Style="{StaticResource DefaultButtonStyle}" HorizontalAlignment="Left" Margin="0,0,0,20"/><TextBlock Text="About" FontSize="18" FontWeight="Bold" Foreground="White" Margin="0,10,0,10"/><TextBlock TextWrapping="Wrap" Foreground="{StaticResource TextColor}" LineHeight="20"><Run FontWeight="Bold">Advanced Driver Tool v3.6</Run><LineBreak/>A minimalist, all-in-one utility for managing your PC's drivers. This tool safely uses the official Windows Update service to find and install WHQL-certified drivers.<LineBreak/><LineBreak/><Run FontWeight="Bold">Features:</Run><LineBreak/>- Scan for and install driver updates.<LineBreak/>- View, filter, and sort all installed third-party drivers.<LineBreak/>- Back up drivers to an external location, ideal for OS reinstalls.<LineBreak/>- View detailed system hardware information.<LineBreak/>- Run as Administrator for full functionality.</TextBlock></StackPanel>
             </Grid>
         </Grid>
 
@@ -198,7 +173,7 @@ function Start-DriverTool {
     function Show-MessageBox { param([string]$Text, [string]$Title, [string]$Icon = "Information") $window.Dispatcher.Invoke({ [System.Windows.MessageBox]::Show($window, $Text, $Title, 'OK', $Icon) }) | Out-Null }
     function Ensure-PSWindowsUpdate { Update-Status "Checking for 'PSWindowsUpdate' module..."; if (Get-Module -ListAvailable -Name PSWindowsUpdate) { return $true }; Set-ProgressState -IsActive $true -Message "Installing required module..."; try { Install-Module PSWindowsUpdate -Force -AcceptLicense -Scope CurrentUser -ErrorAction Stop; Update-Status "'PSWindowsUpdate' module installed successfully."; return $true } catch { Show-MessageBox "Failed to install 'PSWindowsUpdate' module." "Module Error" "Error"; return $false } finally { Set-ProgressState -IsActive $false } }
 
-    # --- MAIN NAVIGATION LOGIC ---
+    # MAIN NAVIGATION LOGIC
     $navButtons = $controls.GetEnumerator() | Where-Object { $_.Key -like "Nav*" }
     foreach ($navButton in $navButtons) {
         $navButton.Value.add_Checked({
@@ -219,7 +194,8 @@ function Start-DriverTool {
     $controls.SelectAllCheckBox.add_Click({ $isChecked = $controls.SelectAllCheckBox.IsChecked; $script:updateCollection | ForEach-Object { $_.IsSelected = $isChecked }; $controls.InstallButton.IsEnabled = ($isChecked -and $script:updateCollection.Count -gt 0) })
 
     # --- Driver Manager ---
-    $controls.ListDriversButton.add_Click({ Set-ProgressState -IsActive $true -Message "Gathering driver info..."; Update-Status "Listing drivers..."; $script:allDriversCollection.Clear(); $controls.BackupDriversButton.IsEnabled = $false; $script:currentJob = Start-Job -ScriptBlock { Get-PnpDevice | Where-Object { $_.DriverVersion -and $_.Manufacturer -ne "Microsoft" } | Select-Object FriendlyName, Manufacturer, DriverVersion, DriverDate }; $script:currentTimer = New-Object System.Windows.Threading.DispatcherTimer; $script:currentTimer.Interval = [TimeSpan]::fromMilliseconds(500); $script:currentTimer.add_Tick({ if ($script:currentJob.State -ne 'Running') { $script:currentTimer.Stop(); $drivers = Receive-Job $script:currentJob; Remove-Job $script:currentJob; $drivers | ForEach-Object { $script:allDriversCollection.Add($_) }; Update-Status "Found $($drivers.Count) third-party drivers."; $controls.BackupDriversButton.IsEnabled = ($drivers.Count -gt 0); Set-ProgressState -IsActive $false } }); $script:currentTimer.Start() })
+    $ListDriversAction = { Set-ProgressState -IsActive $true -Message "Gathering driver info..."; Update-Status "Listing drivers..."; $script:allDriversCollection.Clear(); $controls.BackupDriversButton.IsEnabled = $false; $script:currentJob = Start-Job -ScriptBlock { Get-PnpDevice | Where-Object { $_.DriverVersion -and $_.Manufacturer -ne "Microsoft" } | Select-Object FriendlyName, Manufacturer, DriverVersion, DriverDate }; $script:currentTimer = New-Object System.Windows.Threading.DispatcherTimer; $script:currentTimer.Interval = [TimeSpan]::fromMilliseconds(500); $script:currentTimer.add_Tick({ if ($script:currentJob.State -ne 'Running') { $script:currentTimer.Stop(); $drivers = Receive-Job $script:currentJob; Remove-Job $script:currentJob; $drivers | ForEach-Object { $script:allDriversCollection.Add($_) }; Update-Status "Found $($drivers.Count) third-party drivers."; $controls.BackupDriversButton.IsEnabled = ($drivers.Count -gt 0); Set-ProgressState -IsActive $false } }); $script:currentTimer.Start() }
+    $controls.ListDriversButton.add_Click($ListDriversAction)
     $controls.FilterTextBox.add_TextChanged({ $filterText = $controls.FilterTextBox.Text; $script:driversView.Filter = { param($item) $item.FriendlyName -like "*$filterText*" -or $item.Manufacturer -like "*$filterText*" } })
     $controls.BackupDriversButton.add_Click({ $dialog = New-Object System.Windows.Forms.FolderBrowserDialog; $dialog.Description = "Select a folder to save the driver backup"; if ($dialog.ShowDialog() -eq "OK") { $path = $dialog.SelectedPath; Set-ProgressState -IsActive $true -Message "Backing up drivers..."; Update-Status "Exporting drivers..."; $script:currentJob = Start-Job -ScriptBlock { param($path) Export-WindowsDriver -Online -Destination $path } -ArgumentList $path; $script:currentTimer = New-Object System.Windows.Threading.DispatcherTimer; $script:currentTimer.Interval = [TimeSpan]::FromSeconds(1); $script:currentTimer.add_Tick({ if ($script:currentJob.State -ne 'Running') { $script:currentTimer.Stop(); $result = Receive-Job $script:currentJob; Remove-Job $script:currentJob; Set-ProgressState -IsActive $false; Update-Status "Driver backup completed successfully."; Show-MessageBox "Drivers backed up to:`n$path" "Backup Complete" } }); $script:currentTimer.Start() } })
 
@@ -230,8 +206,10 @@ function Start-DriverTool {
     $controls.ClearCacheButton.add_Click({ if (-not (Ensure-PSWindowsUpdate)) { return }; $confirm = [System.Windows.MessageBox]::Show($window, "This will stop the Windows Update service and delete its cache files. This can help resolve update issues. Proceed?", "Confirm Cache Clear", 'YesNo', 'Warning'); if ($confirm -ne 'Yes') { return }; Set-ProgressState -IsActive $true -Message "Resetting components..."; Update-Status "Clearing cache..."; $script:currentJob = Start-Job -ScriptBlock { Import-Module PSWindowsUpdate; Reset-WUComponents -ErrorAction SilentlyContinue }; $script:currentTimer = New-Object System.Windows.Threading.DispatcherTimer; $script:currentTimer.Interval = [TimeSpan]::FromSeconds(1); $script:currentTimer.add_Tick({ if ($script:currentJob.State -ne 'Running') { $script:currentTimer.Stop(); $result = Receive-Job $script:currentJob; Remove-Job $script:currentJob; Set-ProgressState -IsActive $false; Update-Status "Windows Update cache cleared." } }); $script:currentTimer.Start() })
     #endregion
     
-    # Show the window
+    # --- Initial Actions ---
     Update-Status "Ready"
+    # Automatically list drivers on startup
+    & $ListDriversAction
     $window.ShowDialog() | Out-Null
 }
 

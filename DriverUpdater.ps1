@@ -7,7 +7,7 @@
     and see detailed system information.
 .NOTES
     Author: Your Name / AI Assistant
-    Version: 3.0 (Modern UI Edition)
+    Version: 3.1 (Scope Fix Edition)
     Requires: PowerShell 5.1+ on Windows 10/11.
     MUST be run as Administrator for full functionality.
 
@@ -44,7 +44,7 @@ function Start-DriverTool {
     [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Advanced Driver Tool v3.0" Height="700" Width="950" MinHeight="600" MinWidth="800"
+        Title="Advanced Driver Tool v3.1" Height="700" Width="950" MinHeight="600" MinWidth="800"
         WindowStartupLocation="CenterScreen" WindowStyle="SingleBorderWindow"
         Background="#FF2D2D30">
     <Window.Resources>
@@ -203,7 +203,7 @@ function Start-DriverTool {
                         <Button x:Name="ClearCacheButton" Content="Clear Windows Update Cache" HorizontalAlignment="Left" Margin="0,0,0,20"/>
                         <TextBlock Text="About" FontSize="18" FontWeight="Bold" Foreground="White" Margin="0,10,0,10"/>
                         <TextBlock TextWrapping="Wrap" Foreground="{StaticResource TextColor}" LineHeight="20">
-                            <Run FontWeight="Bold">Advanced Driver Tool v3.0</Run><LineBreak/>
+                            <Run FontWeight="Bold">Advanced Driver Tool v3.1</Run><LineBreak/>
                             A modern, all-in-one utility for managing your PC's drivers. This tool safely uses the official Windows Update service to find and install WHQL-certified drivers.<LineBreak/>
                             <LineBreak/>
                             <Run FontWeight="Bold">Features:</Run><LineBreak/>
@@ -305,9 +305,9 @@ function Start-DriverTool {
         }
         $timer = New-Object System.Windows.Threading.DispatcherTimer; $timer.Interval = [TimeSpan]::FromSeconds(1)
         $timer.add_Tick({
-            if ($job.State -ne 'Running') {
-                $timer.Stop()
-                $updates = Receive-Job $job; Remove-Job $job
+            if ($using:job.State -ne 'Running') {
+                $using:timer.Stop()
+                $updates = Receive-Job $using:job; Remove-Job $using:job
                 if ($null -eq $updates -or $updates.Count -eq 0) {
                     Update-Status "No new driver updates found. Your system is up to date!"
                 } else {
@@ -337,8 +337,8 @@ function Start-DriverTool {
         $job = Start-Job -ScriptBlock { param($updates) Import-Module PSWindowsUpdate; Install-WindowsUpdate -InputObject $updates -AcceptAll -AutoReboot } -ArgumentList (,$originalUpdates)
         $timer = New-Object System.Windows.Threading.DispatcherTimer; $timer.Interval = [TimeSpan]::FromSeconds(1)
         $timer.add_Tick({
-            if ($job.State -ne 'Running') {
-                $timer.Stop(); Receive-Job $job; Remove-Job $job
+            if ($using:job.State -ne 'Running') {
+                $using:timer.Stop(); $result = Receive-Job $using:job; Remove-Job $using:job
                 Set-ProgressState -IsActive $false
                 Update-Status "Installation finished. A reboot may be pending. Please scan again after reboot."
                 $script:updateCollection.Clear(); $controls.InstallButton.IsEnabled = $false
@@ -366,9 +366,9 @@ function Start-DriverTool {
         $job = Start-Job -ScriptBlock { Get-PnpDevice | Where-Object { $_.DriverVersion -and $_.Manufacturer -ne "Microsoft" } | Select-Object FriendlyName, Manufacturer, DriverVersion, DriverDate }
         $timer = New-Object System.Windows.Threading.DispatcherTimer; $timer.Interval = [TimeSpan]::FromSeconds(1)
         $timer.add_Tick({
-            if ($job.State -ne 'Running') {
-                $timer.Stop()
-                $drivers = Receive-Job $job; Remove-Job $job
+            if ($using:job.State -ne 'Running') {
+                $using:timer.Stop()
+                $drivers = Receive-Job $using:job; Remove-Job $using:job
                 $drivers | ForEach-Object { $script:allDriversCollection.Add($_) }
                 Update-Status "Found $($drivers.Count) third-party drivers."
                 $controls.BackupDriversButton.IsEnabled = ($drivers.Count -gt 0)
@@ -396,8 +396,8 @@ function Start-DriverTool {
             $job = Start-Job -ScriptBlock { param($path) Export-WindowsDriver -Online -Destination $path } -ArgumentList $path
             $timer = New-Object System.Windows.Threading.DispatcherTimer; $timer.Interval = [TimeSpan]::FromSeconds(1)
             $timer.add_Tick({
-                if ($job.State -ne 'Running') {
-                    $timer.Stop(); Receive-Job $job; Remove-Job $job
+                if ($using:job.State -ne 'Running') {
+                    $using:timer.Stop(); $result = Receive-Job $using:job; Remove-Job $using:job
                     Set-ProgressState -IsActive $false
                     Update-Status "Driver backup completed successfully."
                     Show-MessageBox "All third-party drivers have been backed up to:`n$path" "Backup Complete"
@@ -459,8 +459,8 @@ function Start-DriverTool {
         # This can be a long process, check on it
         $timer = New-Object System.Windows.Threading.DispatcherTimer; $timer.Interval = [TimeSpan]::FromSeconds(1)
         $timer.add_Tick({
-            if ($job.State -ne 'Running') {
-                $timer.Stop(); Receive-Job $job; Remove-Job $job
+            if ($using:job.State -ne 'Running') {
+                $using:timer.Stop(); $result = Receive-Job $using:job; Remove-Job $using:job
                 Set-ProgressState -IsActive $false
                 Update-Status "Windows Update cache cleared successfully."
             }

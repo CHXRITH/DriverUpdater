@@ -7,7 +7,7 @@
     and see detailed system information. This version is fully compatible with `irm | iex`.
 .NOTES
     Author: Your Name / AI Assistant
-    Version: 3.2 (iex Scope-Fix Edition)
+    Version: 3.3 (Compatibility and Robustness Fix)
     Requires: PowerShell 5.1+ on Windows 10/11.
     MUST be run as Administrator for full functionality.
 
@@ -44,7 +44,7 @@ function Start-DriverTool {
     [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Advanced Driver Tool v3.2" Height="700" Width="950" MinHeight="600" MinWidth="800"
+        Title="Advanced Driver Tool v3.3" Height="700" Width="950" MinHeight="600" MinWidth="800"
         WindowStartupLocation="CenterScreen" WindowStyle="SingleBorderWindow"
         Background="#FF2D2D30">
     <Window.Resources>
@@ -203,7 +203,7 @@ function Start-DriverTool {
                         <Button x:Name="ClearCacheButton" Content="Clear Windows Update Cache" HorizontalAlignment="Left" Margin="0,0,0,20"/>
                         <TextBlock Text="About" FontSize="18" FontWeight="Bold" Foreground="White" Margin="0,10,0,10"/>
                         <TextBlock TextWrapping="Wrap" Foreground="{StaticResource TextColor}" LineHeight="20">
-                            <Run FontWeight="Bold">Advanced Driver Tool v3.2</Run><LineBreak/>
+                            <Run FontWeight="Bold">Advanced Driver Tool v3.3</Run><LineBreak/>
                             A modern, all-in-one utility for managing your PC's drivers. This tool safely uses the official Windows Update service to find and install WHQL-certified drivers.<LineBreak/>
                             <LineBreak/>
                             <Run FontWeight="Bold">Features:</Run><LineBreak/>
@@ -299,7 +299,8 @@ function Start-DriverTool {
         Update-Status "Scanning... this may take a few minutes."
         $script:updateCollection.Clear(); $controls.InstallButton.IsEnabled = $false
         
-        $script:currentJob = Start-Job -ScriptBlock { Import-Module PSWindowsUpdate; Get-WindowsUpdate -Driver -ErrorAction SilentlyContinue }
+        # FIXED: Using universal CategoryID instead of the -Driver switch for max compatibility
+        $script:currentJob = Start-Job -ScriptBlock { Import-Module PSWindowsUpdate; Get-WindowsUpdate -CategoryIDs '0fa1201d-4330-4fa8-8ae9-b877473b6441' -ErrorAction SilentlyContinue }
         $script:currentTimer = New-Object System.Windows.Threading.DispatcherTimer; $script:currentTimer.Interval = [TimeSpan]::FromSeconds(1)
         $script:currentTimer.add_Tick({
             if ($script:currentJob.State -ne 'Running') {
@@ -399,25 +400,64 @@ function Start-DriverTool {
     })
 
     # --- System Info ---
+    # FIXED: The entire function is rewritten to be more robust and avoid the SetValue error.
     function Populate-SystemInfo {
-        $controls.SystemInfoPanel.Children.Clear()
-        $headingStyle = @{ FontSize=16; FontWeight='Bold'; Foreground=$window.FindResource('TextColor'); Margin='0,15,0,5' }
-        $itemStyle = @{ Foreground=$window.FindResource('FadedTextColor'); Margin='10,2,0,2' }
+        $panel = $controls.SystemInfoPanel
+        $panel.Children.Clear()
 
-        $addHeading = { param($text) $tb = New-Object System.Windows.Controls.TextBlock; $tb.Text = $text; $headingStyle.GetEnumerator() | %{ $tb.SetValue($_.Name, $_.Value) }; $controls.SystemInfoPanel.Children.Add($tb) }
-        $addItem = { param($key, $val) if ($val) { $tb = New-Object System.Windows.Controls.TextBlock; $tb.Text = "$key`: $val"; $itemStyle.GetEnumerator() | %{ $tb.SetValue($_.Name, $_.Value) }; $controls.SystemInfoPanel.Children.Add($tb) } }
+        # Helper function to add a styled heading TextBlock
+        function Add-Heading {
+            param($Text)
+            $tb = New-Object System.Windows.Controls.TextBlock
+            $tb.Text = $Text
+            $tb.FontSize = 16
+            $tb.FontWeight = [System.Windows.FontWeights]::Bold
+            $tb.Foreground = $window.FindResource('TextColor')
+            $tb.Margin = "0,15,0,5"
+            $panel.Children.Add($tb)
+        }
+
+        # Helper function to add a styled item TextBlock
+        function Add-Item {
+            param($Key, $Value)
+            if (-not [string]::IsNullOrWhiteSpace($Value)) {
+                $tb = New-Object System.Windows.Controls.TextBlock
+                $tb.Text = "$Key`: $Value"
+                $tb.Foreground = $window.FindResource('FadedTextColor')
+                $tb.Margin = "10,2,0,2"
+                $panel.Children.Add($tb)
+            }
+        }
+
+        Add-Heading 'Operating System'
         $os = Get-CimInstance -ClassName Win32_OperatingSystem
-        $addHeading.Invoke('Operating System'); $addItem.Invoke('Name', $os.Caption); $addItem.Invoke('Version', $os.Version); $addItem.Invoke('Build', $os.BuildNumber)
+        Add-Item 'Name' $os.Caption
+        Add-Item 'Version' $os.Version
+        Add-Item 'Build' $os.BuildNumber
+
+        Add-Heading 'Processor'
         $cpu = Get-CimInstance -ClassName Win32_Processor
-        $addHeading.Invoke('Processor'); $addItem.Invoke('Name', $cpu.Name); $addItem.Invoke('Cores', $cpu.NumberOfCores); $addItem.Invoke('Threads', $cpu.NumberOfLogicalProcessors)
-        $gpu = Get-CimInstance -ClassName Win32_VideoController
-        $addHeading.Invoke('Graphics Card'); $gpu | %{ $addItem.Invoke($_.Name, "$([math]::Round($_.AdapterRAM / 1GB, 2)) GB") }
+        Add-Item 'Name' $cpu.Name
+        Add-Item 'Cores' $cpu.NumberOfCores
+        Add-Item 'Threads' $cpu.NumberOfLogicalProcessors
+
+        Add-Heading 'Graphics Card'
+        $gpus = Get-CimInstance -ClassName Win32_VideoController
+        foreach ($gpu in $gpus) { Add-Item $gpu.Name "$([math]::Round($gpu.AdapterRAM / 1GB, 2)) GB" }
+
+        Add-Heading 'Memory'
         $mem = Get-CimInstance -ClassName Win32_ComputerSystem
-        $addHeading.Invoke('Memory'); $addItem.Invoke('Total RAM', "$([math]::Round($mem.TotalPhysicalMemory / 1GB, 2)) GB")
+        Add-Item 'Total RAM' "$([math]::Round($mem.TotalPhysicalMemory / 1GB, 2)) GB"
+
+        Add-Heading 'Motherboard'
         $board = Get-CimInstance -ClassName Win32_BaseBoard
-        $addHeading.Invoke('Motherboard'); $addItem.Invoke('Manufacturer', $board.Manufacturer); $addItem.Invoke('Product', $board.Product)
+        Add-Item 'Manufacturer' $board.Manufacturer
+        Add-Item 'Product' $board.Product
+        
+        Add-Heading 'BIOS'
         $bios = Get-CimInstance -ClassName Win32_BIOS
-        $addHeading.Invoke('BIOS'); $addItem.Invoke('Manufacturer', $bios.Manufacturer); $addItem.Invoke('Version', $bios.SMBIOSBIOSVersion)
+        Add-Item 'Manufacturer' $bios.Manufacturer
+        Add-Item 'Version' $bios.SMBIOSBIOSVersion
     }
     Populate-SystemInfo
 
@@ -429,7 +469,9 @@ function Start-DriverTool {
         
         Set-ProgressState -IsActive $true -Message "Resetting Windows Update components..."
         Update-Status "Clearing cache..."
-        $script:currentJob = Start-Job -ScriptBlock { Import-Module PSWindowsUpdate; Reset-WUComponents -Silent -ErrorAction SilentlyContinue }
+        
+        # FIXED: Removed the -Silent parameter for max compatibility
+        $script:currentJob = Start-Job -ScriptBlock { Import-Module PSWindowsUpdate; Reset-WUComponents -ErrorAction SilentlyContinue }
         $script:currentTimer = New-Object System.Windows.Threading.DispatcherTimer; $script:currentTimer.Interval = [TimeSpan]::FromSeconds(1)
         $script:currentTimer.add_Tick({
             if ($script:currentJob.State -ne 'Running') {

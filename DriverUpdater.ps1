@@ -1,13 +1,13 @@
 <#
 .SYNOPSIS
-    An advanced, modern GUI for Windows driver management and updates.
+    An advanced, modern GUI for Windows driver management and updates with a toolbar UI.
 .DESCRIPTION
     A comprehensive, self-contained PowerShell script featuring a rich, dark-themed WPF user interface.
     It provides tools to find and install driver updates, view all installed drivers, perform backups,
     and see detailed system information. This version is fully compatible with `irm | iex`.
 .NOTES
     Author: Your Name / AI Assistant
-    Version: 3.3 (Compatibility and Robustness Fix)
+    Version: 3.4 (Toolbar UI Edition)
     Requires: PowerShell 5.1+ on Windows 10/11.
     MUST be run as Administrator for full functionality.
 
@@ -44,7 +44,7 @@ function Start-DriverTool {
     [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Advanced Driver Tool v3.3" Height="700" Width="950" MinHeight="600" MinWidth="800"
+        Title="Advanced Driver Tool v3.4" Height="700" Width="950" MinHeight="600" MinWidth="800"
         WindowStartupLocation="CenterScreen" WindowStyle="SingleBorderWindow"
         Background="#FF2D2D30">
     <Window.Resources>
@@ -56,7 +56,7 @@ function Start-DriverTool {
         <SolidColorBrush x:Key="FadedTextColor" Color="#FF9E9E9E"/>
 
         <!-- Style for all Buttons -->
-        <Style TargetType="Button">
+        <Style x:Key="DefaultButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="{StaticResource AccentColor}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -79,6 +79,34 @@ function Start-DriverTool {
                 <Trigger Property="IsEnabled" Value="False">
                     <Setter Property="Background" Value="#FF555555"/>
                     <Setter Property="Foreground" Value="#FF999999"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Style for Toolbar Buttons -->
+        <Style x:Key="ToolBarButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource TextColor}"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="3">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#FF555555"/>
+                    <Setter Property="BorderBrush" Value="#FF6B6B6B"/>
+                </Trigger>
+                 <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Foreground" Value="#FF6A6A6A"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -111,6 +139,14 @@ function Start-DriverTool {
                 </Setter.Value>
             </Setter>
         </Style>
+        
+        <!-- Style for the ToolBar -->
+        <Style TargetType="ToolBar">
+            <Setter Property="Background" Value="{StaticResource PrimaryBgColor}"/>
+        </Style>
+        <Style TargetType="ToolBarTray">
+            <Setter Property="Background" Value="{StaticResource PrimaryBgColor}"/>
+        </Style>
 
         <!-- Style for the DataGrid -->
         <Style TargetType="DataGrid">
@@ -131,22 +167,26 @@ function Start-DriverTool {
         <TabControl Grid.Row="0">
             <!-- Update Center Tab -->
             <TabItem Header="Update Center">
-                <Grid Background="{StaticResource PrimaryBgColor}" Margin="5">
+                <Grid Background="{StaticResource PrimaryBgColor}">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="10">
-                        <Button x:Name="ScanButton">
-                            <StackPanel Orientation="Horizontal"><TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE721;" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="Scan for Updates"/></StackPanel>
-                        </Button>
-                        <Button x:Name="InstallButton" IsEnabled="False" Margin="10,0,0,0">
-                            <StackPanel Orientation="Horizontal"><TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE896;" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="Install Selected"/></StackPanel>
-                        </Button>
-                        <CheckBox x:Name="SelectAllCheckBox" Content="Select All/None" Foreground="{StaticResource TextColor}" VerticalAlignment="Center" Margin="20,0,0,0"/>
-                    </StackPanel>
-                    <DataGrid x:Name="UpdateDataGrid" Grid.Row="1" Margin="10,0" AutoGenerateColumns="False" IsReadOnly="True" CanUserSortColumns="True" SelectionMode="Single">
+                    
+                    <ToolBarTray Grid.Row="0">
+                        <ToolBar>
+                            <Button x:Name="ScanButton" ToolTip="Scan for Updates" Style="{StaticResource ToolBarButtonStyle}">
+                                <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="20" Text="&#xE721;"/>
+                            </Button>
+                            <Button x:Name="InstallButton" IsEnabled="False" ToolTip="Install Selected Updates" Style="{StaticResource ToolBarButtonStyle}">
+                                <StackPanel Orientation="Horizontal"><TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE896;" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="Install Selected"/></StackPanel>
+                            </Button>
+                            <Separator/>
+                            <CheckBox x:Name="SelectAllCheckBox" Content="Select All/None" Foreground="{StaticResource TextColor}" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        </ToolBar>
+                    </ToolBarTray>
+                    
+                    <DataGrid x:Name="UpdateDataGrid" Grid.Row="1" Margin="5" AutoGenerateColumns="False" IsReadOnly="True" CanUserSortColumns="True" SelectionMode="Single">
                         <DataGrid.Columns>
                             <DataGridTemplateColumn Header="Install" Width="SizeToCells">
                                 <DataGridTemplateColumn.CellTemplate>
@@ -163,19 +203,27 @@ function Start-DriverTool {
 
             <!-- Driver Manager Tab -->
             <TabItem Header="Driver Manager">
-                <Grid Background="{StaticResource PrimaryBgColor}" Margin="5">
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="10">
-                        <Button x:Name="ListDriversButton">
-                            <StackPanel Orientation="Horizontal"><TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE71D;" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="List Installed Drivers"/></StackPanel>
-                        </Button>
-                        <Button x:Name="BackupDriversButton" IsEnabled="False">
-                            <StackPanel Orientation="Horizontal"><TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE790;" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="Backup 3rd-Party Drivers"/></StackPanel>
-                        </Button>
-                        <TextBlock Text="Filter:" Foreground="{StaticResource TextColor}" VerticalAlignment="Center" Margin="20,0,5,0"/>
-                        <TextBox x:Name="FilterTextBox" Width="200" VerticalAlignment="Center" Background="#FF555555" Foreground="White" BorderThickness="1" BorderBrush="#FF6B6B6B"/>
-                    </StackPanel>
-                    <DataGrid x:Name="DriverManagerDataGrid" Grid.Row="1" Margin="10,0" AutoGenerateColumns="False" IsReadOnly="True" CanUserSortColumns="True">
+                <Grid Background="{StaticResource PrimaryBgColor}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    
+                     <ToolBarTray Grid.Row="0">
+                        <ToolBar>
+                             <Button x:Name="ListDriversButton" ToolTip="List Installed Drivers" Style="{StaticResource ToolBarButtonStyle}">
+                                <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="20" Text="&#xE71D;"/>
+                            </Button>
+                            <Button x:Name="BackupDriversButton" IsEnabled="False" ToolTip="Backup All 3rd-Party Drivers" Style="{StaticResource ToolBarButtonStyle}">
+                                <StackPanel Orientation="Horizontal"><TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE790;" VerticalAlignment="Center" Margin="0,0,8,0"/><TextBlock Text="Backup Drivers"/></StackPanel>
+                            </Button>
+                             <Separator/>
+                            <TextBlock Text="Filter:" Foreground="{StaticResource TextColor}" VerticalAlignment="Center" Margin="10,0,5,0"/>
+                            <TextBox x:Name="FilterTextBox" Width="200" VerticalAlignment="Center" Background="#FF555555" Foreground="White" BorderThickness="1" BorderBrush="#FF6B6B6B"/>
+                        </ToolBar>
+                    </ToolBarTray>
+                    
+                    <DataGrid x:Name="DriverManagerDataGrid" Grid.Row="1" Margin="5" AutoGenerateColumns="False" IsReadOnly="True" CanUserSortColumns="True">
                          <DataGrid.Columns>
                             <DataGridTextColumn Header="Driver" Binding="{Binding FriendlyName}" Width="*"/>
                             <DataGridTextColumn Header="Manufacturer" Binding="{Binding Manufacturer}" Width="200"/>
@@ -200,10 +248,10 @@ function Start-DriverTool {
                  <Grid Background="{StaticResource PrimaryBgColor}" Margin="5">
                     <StackPanel Margin="20">
                         <TextBlock Text="Utilities" FontSize="18" FontWeight="Bold" Foreground="White" Margin="0,0,0,10"/>
-                        <Button x:Name="ClearCacheButton" Content="Clear Windows Update Cache" HorizontalAlignment="Left" Margin="0,0,0,20"/>
+                        <Button x:Name="ClearCacheButton" Content="Clear Windows Update Cache" Style="{StaticResource DefaultButtonStyle}" HorizontalAlignment="Left" Margin="0,0,0,20"/>
                         <TextBlock Text="About" FontSize="18" FontWeight="Bold" Foreground="White" Margin="0,10,0,10"/>
                         <TextBlock TextWrapping="Wrap" Foreground="{StaticResource TextColor}" LineHeight="20">
-                            <Run FontWeight="Bold">Advanced Driver Tool v3.3</Run><LineBreak/>
+                            <Run FontWeight="Bold">Advanced Driver Tool v3.4</Run><LineBreak/>
                             A modern, all-in-one utility for managing your PC's drivers. This tool safely uses the official Windows Update service to find and install WHQL-certified drivers.<LineBreak/>
                             <LineBreak/>
                             <Run FontWeight="Bold">Features:</Run><LineBreak/>
@@ -299,7 +347,6 @@ function Start-DriverTool {
         Update-Status "Scanning... this may take a few minutes."
         $script:updateCollection.Clear(); $controls.InstallButton.IsEnabled = $false
         
-        # FIXED: Using universal CategoryID instead of the -Driver switch for max compatibility
         $script:currentJob = Start-Job -ScriptBlock { Import-Module PSWindowsUpdate; Get-WindowsUpdate -CategoryIDs '0fa1201d-4330-4fa8-8ae9-b877473b6441' -ErrorAction SilentlyContinue }
         $script:currentTimer = New-Object System.Windows.Threading.DispatcherTimer; $script:currentTimer.Interval = [TimeSpan]::FromSeconds(1)
         $script:currentTimer.add_Tick({
@@ -360,7 +407,7 @@ function Start-DriverTool {
         $script:allDriversCollection.Clear(); $controls.BackupDriversButton.IsEnabled = $false
 
         $script:currentJob = Start-Job -ScriptBlock { Get-PnpDevice | Where-Object { $_.DriverVersion -and $_.Manufacturer -ne "Microsoft" } | Select-Object FriendlyName, Manufacturer, DriverVersion, DriverDate }
-        $script:currentTimer = New-Object System.Windows.Threading.DispatcherTimer; $script:currentTimer.Interval = [TimeSpan]::FromSeconds(1)
+        $script:currentTimer = New-Object System.Windows.Threading.DispatcherTimer; $script:currentTimer.Interval = [TimeSpan]::fromMilliseconds(500)
         $script:currentTimer.add_Tick({
             if ($script:currentJob.State -ne 'Running') {
                 $script:currentTimer.Stop()
@@ -400,64 +447,19 @@ function Start-DriverTool {
     })
 
     # --- System Info ---
-    # FIXED: The entire function is rewritten to be more robust and avoid the SetValue error.
     function Populate-SystemInfo {
         $panel = $controls.SystemInfoPanel
         $panel.Children.Clear()
 
-        # Helper function to add a styled heading TextBlock
-        function Add-Heading {
-            param($Text)
-            $tb = New-Object System.Windows.Controls.TextBlock
-            $tb.Text = $Text
-            $tb.FontSize = 16
-            $tb.FontWeight = [System.Windows.FontWeights]::Bold
-            $tb.Foreground = $window.FindResource('TextColor')
-            $tb.Margin = "0,15,0,5"
-            $panel.Children.Add($tb)
-        }
+        function Add-Heading { param($Text) $tb = New-Object System.Windows.Controls.TextBlock; $tb.Text = $Text; $tb.FontSize = 16; $tb.FontWeight = [System.Windows.FontWeights]::Bold; $tb.Foreground = $window.FindResource('TextColor'); $tb.Margin = "0,15,0,5"; $panel.Children.Add($tb) }
+        function Add-Item { param($Key, $Value) if (-not [string]::IsNullOrWhiteSpace($Value)) { $tb = New-Object System.Windows.Controls.TextBlock; $tb.Text = "$Key`: $Value"; $tb.Foreground = $window.FindResource('FadedTextColor'); $tb.Margin = "10,2,0,2"; $panel.Children.Add($tb) } }
 
-        # Helper function to add a styled item TextBlock
-        function Add-Item {
-            param($Key, $Value)
-            if (-not [string]::IsNullOrWhiteSpace($Value)) {
-                $tb = New-Object System.Windows.Controls.TextBlock
-                $tb.Text = "$Key`: $Value"
-                $tb.Foreground = $window.FindResource('FadedTextColor')
-                $tb.Margin = "10,2,0,2"
-                $panel.Children.Add($tb)
-            }
-        }
-
-        Add-Heading 'Operating System'
-        $os = Get-CimInstance -ClassName Win32_OperatingSystem
-        Add-Item 'Name' $os.Caption
-        Add-Item 'Version' $os.Version
-        Add-Item 'Build' $os.BuildNumber
-
-        Add-Heading 'Processor'
-        $cpu = Get-CimInstance -ClassName Win32_Processor
-        Add-Item 'Name' $cpu.Name
-        Add-Item 'Cores' $cpu.NumberOfCores
-        Add-Item 'Threads' $cpu.NumberOfLogicalProcessors
-
-        Add-Heading 'Graphics Card'
-        $gpus = Get-CimInstance -ClassName Win32_VideoController
-        foreach ($gpu in $gpus) { Add-Item $gpu.Name "$([math]::Round($gpu.AdapterRAM / 1GB, 2)) GB" }
-
-        Add-Heading 'Memory'
-        $mem = Get-CimInstance -ClassName Win32_ComputerSystem
-        Add-Item 'Total RAM' "$([math]::Round($mem.TotalPhysicalMemory / 1GB, 2)) GB"
-
-        Add-Heading 'Motherboard'
-        $board = Get-CimInstance -ClassName Win32_BaseBoard
-        Add-Item 'Manufacturer' $board.Manufacturer
-        Add-Item 'Product' $board.Product
-        
-        Add-Heading 'BIOS'
-        $bios = Get-CimInstance -ClassName Win32_BIOS
-        Add-Item 'Manufacturer' $bios.Manufacturer
-        Add-Item 'Version' $bios.SMBIOSBIOSVersion
+        Add-Heading 'Operating System'; $os = Get-CimInstance -ClassName Win32_OperatingSystem; Add-Item 'Name' $os.Caption; Add-Item 'Version' $os.Version; Add-Item 'Build' $os.BuildNumber
+        Add-Heading 'Processor'; $cpu = Get-CimInstance -ClassName Win32_Processor; Add-Item 'Name' $cpu.Name; Add-Item 'Cores' $cpu.NumberOfCores; Add-Item 'Threads' $cpu.NumberOfLogicalProcessors
+        Add-Heading 'Graphics Card'; $gpus = Get-CimInstance -ClassName Win32_VideoController; foreach ($gpu in $gpus) { Add-Item $gpu.Name "$([math]::Round($gpu.AdapterRAM / 1GB, 2)) GB" }
+        Add-Heading 'Memory'; $mem = Get-CimInstance -ClassName Win32_ComputerSystem; Add-Item 'Total RAM' "$([math]::Round($mem.TotalPhysicalMemory / 1GB, 2)) GB"
+        Add-Heading 'Motherboard'; $board = Get-CimInstance -ClassName Win32_BaseBoard; Add-Item 'Manufacturer' $board.Manufacturer; Add-Item 'Product' $board.Product
+        Add-Heading 'BIOS'; $bios = Get-CimInstance -ClassName Win32_BIOS; Add-Item 'Manufacturer' $bios.Manufacturer; Add-Item 'Version' $bios.SMBIOSBIOSVersion
     }
     Populate-SystemInfo
 
@@ -470,7 +472,6 @@ function Start-DriverTool {
         Set-ProgressState -IsActive $true -Message "Resetting Windows Update components..."
         Update-Status "Clearing cache..."
         
-        # FIXED: Removed the -Silent parameter for max compatibility
         $script:currentJob = Start-Job -ScriptBlock { Import-Module PSWindowsUpdate; Reset-WUComponents -ErrorAction SilentlyContinue }
         $script:currentTimer = New-Object System.Windows.Threading.DispatcherTimer; $script:currentTimer.Interval = [TimeSpan]::FromSeconds(1)
         $script:currentTimer.add_Tick({

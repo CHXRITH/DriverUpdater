@@ -4,10 +4,10 @@
 .DESCRIPTION
     A comprehensive, self-contained PowerShell script featuring a rich, dark-themed WPF user interface.
     It provides tools to find and install driver updates, view all installed drivers, perform backups,
-    and see detailed system information.
+    and see detailed system information. This version is fully compatible with `irm | iex`.
 .NOTES
     Author: Your Name / AI Assistant
-    Version: 3.1 (Scope Fix Edition)
+    Version: 3.2 (iex Scope-Fix Edition)
     Requires: PowerShell 5.1+ on Windows 10/11.
     MUST be run as Administrator for full functionality.
 
@@ -44,7 +44,7 @@ function Start-DriverTool {
     [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Advanced Driver Tool v3.1" Height="700" Width="950" MinHeight="600" MinWidth="800"
+        Title="Advanced Driver Tool v3.2" Height="700" Width="950" MinHeight="600" MinWidth="800"
         WindowStartupLocation="CenterScreen" WindowStyle="SingleBorderWindow"
         Background="#FF2D2D30">
     <Window.Resources>
@@ -203,7 +203,7 @@ function Start-DriverTool {
                         <Button x:Name="ClearCacheButton" Content="Clear Windows Update Cache" HorizontalAlignment="Left" Margin="0,0,0,20"/>
                         <TextBlock Text="About" FontSize="18" FontWeight="Bold" Foreground="White" Margin="0,10,0,10"/>
                         <TextBlock TextWrapping="Wrap" Foreground="{StaticResource TextColor}" LineHeight="20">
-                            <Run FontWeight="Bold">Advanced Driver Tool v3.1</Run><LineBreak/>
+                            <Run FontWeight="Bold">Advanced Driver Tool v3.2</Run><LineBreak/>
                             A modern, all-in-one utility for managing your PC's drivers. This tool safely uses the official Windows Update service to find and install WHQL-certified drivers.<LineBreak/>
                             <LineBreak/>
                             <Run FontWeight="Bold">Features:</Run><LineBreak/>
@@ -257,7 +257,6 @@ function Start-DriverTool {
     $controls.UpdateDataGrid.ItemsSource = $script:updateCollection
     
     $script:allDriversCollection = New-Object System.Collections.ObjectModel.ObservableCollection[PSCustomObject]
-    # Create a filtered view for the driver manager
     $script:driversView = [System.Windows.Data.CollectionViewSource]::GetDefaultView($script:allDriversCollection)
     $controls.DriverManagerDataGrid.ItemsSource = $script:driversView
     #endregion
@@ -300,27 +299,23 @@ function Start-DriverTool {
         Update-Status "Scanning... this may take a few minutes."
         $script:updateCollection.Clear(); $controls.InstallButton.IsEnabled = $false
         
-        $job = Start-Job -ScriptBlock { 
-            Import-Module PSWindowsUpdate; Get-WindowsUpdate -Driver -ErrorAction SilentlyContinue 
-        }
-        $timer = New-Object System.Windows.Threading.DispatcherTimer; $timer.Interval = [TimeSpan]::FromSeconds(1)
-        $timer.add_Tick({
-            if ($using:job.State -ne 'Running') {
-                $using:timer.Stop()
-                $updates = Receive-Job $using:job; Remove-Job $using:job
+        $script:currentJob = Start-Job -ScriptBlock { Import-Module PSWindowsUpdate; Get-WindowsUpdate -Driver -ErrorAction SilentlyContinue }
+        $script:currentTimer = New-Object System.Windows.Threading.DispatcherTimer; $script:currentTimer.Interval = [TimeSpan]::FromSeconds(1)
+        $script:currentTimer.add_Tick({
+            if ($script:currentJob.State -ne 'Running') {
+                $script:currentTimer.Stop()
+                $updates = Receive-Job $script:currentJob; Remove-Job $script:currentJob
                 if ($null -eq $updates -or $updates.Count -eq 0) {
                     Update-Status "No new driver updates found. Your system is up to date!"
                 } else {
                     $updates | ForEach-Object {
-                        $script:updateCollection.Add([PSCustomObject]@{
-                            IsSelected = $false; Title = $_.Title; SizeMB = "{0:N2}" -f ($_.Size / 1MB); KB = $_.KB; UpdateObject = $_
-                        })
+                        $script:updateCollection.Add([PSCustomObject]@{ IsSelected = $false; Title = $_.Title; SizeMB = "{0:N2}" -f ($_.Size / 1MB); KB = $_.KB; UpdateObject = $_ })
                     }
                     Update-Status "Found $($updates.Count) driver update(s)."
                 }
                 Set-ProgressState -IsActive $false
             }
-        }); $timer.Start()
+        }); $script:currentTimer.Start()
     })
 
     $controls.InstallButton.add_Click({
@@ -334,20 +329,20 @@ function Start-DriverTool {
         Update-Status "Installing..."
         $originalUpdates = $updatesToInstall.UpdateObject
 
-        $job = Start-Job -ScriptBlock { param($updates) Import-Module PSWindowsUpdate; Install-WindowsUpdate -InputObject $updates -AcceptAll -AutoReboot } -ArgumentList (,$originalUpdates)
-        $timer = New-Object System.Windows.Threading.DispatcherTimer; $timer.Interval = [TimeSpan]::FromSeconds(1)
-        $timer.add_Tick({
-            if ($using:job.State -ne 'Running') {
-                $using:timer.Stop(); $result = Receive-Job $using:job; Remove-Job $using:job
+        $script:currentJob = Start-Job -ScriptBlock { param($updates) Import-Module PSWindowsUpdate; Install-WindowsUpdate -InputObject $updates -AcceptAll -AutoReboot } -ArgumentList (,$originalUpdates)
+        $script:currentTimer = New-Object System.Windows.Threading.DispatcherTimer; $script:currentTimer.Interval = [TimeSpan]::FromSeconds(1)
+        $script:currentTimer.add_Tick({
+            if ($script:currentJob.State -ne 'Running') {
+                $script:currentTimer.Stop(); $result = Receive-Job $script:currentJob; Remove-Job $script:currentJob
                 Set-ProgressState -IsActive $false
                 Update-Status "Installation finished. A reboot may be pending. Please scan again after reboot."
                 $script:updateCollection.Clear(); $controls.InstallButton.IsEnabled = $false
             }
-        }); $timer.Start()
+        }); $script:currentTimer.Start()
     })
 
     $controls.UpdateDataGrid.add_MouseUp({ 
-        Start-Sleep -Milliseconds 50 # Allow checkbox to update state
+        Start-Sleep -Milliseconds 50
         $controls.InstallButton.IsEnabled = ($script:updateCollection | Where-Object { $_.IsSelected }).Count -gt 0
     })
 
@@ -363,26 +358,23 @@ function Start-DriverTool {
         Update-Status "Listing installed drivers..."
         $script:allDriversCollection.Clear(); $controls.BackupDriversButton.IsEnabled = $false
 
-        $job = Start-Job -ScriptBlock { Get-PnpDevice | Where-Object { $_.DriverVersion -and $_.Manufacturer -ne "Microsoft" } | Select-Object FriendlyName, Manufacturer, DriverVersion, DriverDate }
-        $timer = New-Object System.Windows.Threading.DispatcherTimer; $timer.Interval = [TimeSpan]::FromSeconds(1)
-        $timer.add_Tick({
-            if ($using:job.State -ne 'Running') {
-                $using:timer.Stop()
-                $drivers = Receive-Job $using:job; Remove-Job $using:job
+        $script:currentJob = Start-Job -ScriptBlock { Get-PnpDevice | Where-Object { $_.DriverVersion -and $_.Manufacturer -ne "Microsoft" } | Select-Object FriendlyName, Manufacturer, DriverVersion, DriverDate }
+        $script:currentTimer = New-Object System.Windows.Threading.DispatcherTimer; $script:currentTimer.Interval = [TimeSpan]::FromSeconds(1)
+        $script:currentTimer.add_Tick({
+            if ($script:currentJob.State -ne 'Running') {
+                $script:currentTimer.Stop()
+                $drivers = Receive-Job $script:currentJob; Remove-Job $script:currentJob
                 $drivers | ForEach-Object { $script:allDriversCollection.Add($_) }
                 Update-Status "Found $($drivers.Count) third-party drivers."
                 $controls.BackupDriversButton.IsEnabled = ($drivers.Count -gt 0)
                 Set-ProgressState -IsActive $false
             }
-        }); $timer.Start()
+        }); $script:currentTimer.Start()
     })
 
     $controls.FilterTextBox.add_TextChanged({
         $filterText = $controls.FilterTextBox.Text
-        $script:driversView.Filter = {
-            param($item)
-            $item.FriendlyName -like "*$filterText*" -or $item.Manufacturer -like "*$filterText*"
-        }
+        $script:driversView.Filter = { param($item) $item.FriendlyName -like "*$filterText*" -or $item.Manufacturer -like "*$filterText*" }
     })
 
     $controls.BackupDriversButton.add_Click({
@@ -393,16 +385,16 @@ function Start-DriverTool {
             Set-ProgressState -IsActive $true -Message "Backing up drivers to $path..."
             Update-Status "Exporting drivers..."
 
-            $job = Start-Job -ScriptBlock { param($path) Export-WindowsDriver -Online -Destination $path } -ArgumentList $path
-            $timer = New-Object System.Windows.Threading.DispatcherTimer; $timer.Interval = [TimeSpan]::FromSeconds(1)
-            $timer.add_Tick({
-                if ($using:job.State -ne 'Running') {
-                    $using:timer.Stop(); $result = Receive-Job $using:job; Remove-Job $using:job
+            $script:currentJob = Start-Job -ScriptBlock { param($path) Export-WindowsDriver -Online -Destination $path } -ArgumentList $path
+            $script:currentTimer = New-Object System.Windows.Threading.DispatcherTimer; $script:currentTimer.Interval = [TimeSpan]::FromSeconds(1)
+            $script:currentTimer.add_Tick({
+                if ($script:currentJob.State -ne 'Running') {
+                    $script:currentTimer.Stop(); $result = Receive-Job $script:currentJob; Remove-Job $script:currentJob
                     Set-ProgressState -IsActive $false
                     Update-Status "Driver backup completed successfully."
                     Show-MessageBox "All third-party drivers have been backed up to:`n$path" "Backup Complete"
                 }
-            }); $timer.Start()
+            }); $script:currentTimer.Start()
         }
     })
 
@@ -414,36 +406,18 @@ function Start-DriverTool {
 
         $addHeading = { param($text) $tb = New-Object System.Windows.Controls.TextBlock; $tb.Text = $text; $headingStyle.GetEnumerator() | %{ $tb.SetValue($_.Name, $_.Value) }; $controls.SystemInfoPanel.Children.Add($tb) }
         $addItem = { param($key, $val) if ($val) { $tb = New-Object System.Windows.Controls.TextBlock; $tb.Text = "$key`: $val"; $itemStyle.GetEnumerator() | %{ $tb.SetValue($_.Name, $_.Value) }; $controls.SystemInfoPanel.Children.Add($tb) } }
-
         $os = Get-CimInstance -ClassName Win32_OperatingSystem
-        $addHeading.Invoke('Operating System')
-        $addItem.Invoke('Name', $os.Caption)
-        $addItem.Invoke('Version', $os.Version)
-        $addItem.Invoke('Build', $os.BuildNumber)
-
+        $addHeading.Invoke('Operating System'); $addItem.Invoke('Name', $os.Caption); $addItem.Invoke('Version', $os.Version); $addItem.Invoke('Build', $os.BuildNumber)
         $cpu = Get-CimInstance -ClassName Win32_Processor
-        $addHeading.Invoke('Processor')
-        $addItem.Invoke('Name', $cpu.Name)
-        $addItem.Invoke('Cores', $cpu.NumberOfCores)
-        $addItem.Invoke('Threads', $cpu.NumberOfLogicalProcessors)
-
+        $addHeading.Invoke('Processor'); $addItem.Invoke('Name', $cpu.Name); $addItem.Invoke('Cores', $cpu.NumberOfCores); $addItem.Invoke('Threads', $cpu.NumberOfLogicalProcessors)
         $gpu = Get-CimInstance -ClassName Win32_VideoController
-        $addHeading.Invoke('Graphics Card')
-        $gpu | %{ $addItem.Invoke($_.Name, "$([math]::Round($_.AdapterRAM / 1GB, 2)) GB") }
-
+        $addHeading.Invoke('Graphics Card'); $gpu | %{ $addItem.Invoke($_.Name, "$([math]::Round($_.AdapterRAM / 1GB, 2)) GB") }
         $mem = Get-CimInstance -ClassName Win32_ComputerSystem
-        $addHeading.Invoke('Memory')
-        $addItem.Invoke('Total RAM', "$([math]::Round($mem.TotalPhysicalMemory / 1GB, 2)) GB")
-
+        $addHeading.Invoke('Memory'); $addItem.Invoke('Total RAM', "$([math]::Round($mem.TotalPhysicalMemory / 1GB, 2)) GB")
         $board = Get-CimInstance -ClassName Win32_BaseBoard
-        $addHeading.Invoke('Motherboard')
-        $addItem.Invoke('Manufacturer', $board.Manufacturer)
-        $addItem.Invoke('Product', $board.Product)
-        
+        $addHeading.Invoke('Motherboard'); $addItem.Invoke('Manufacturer', $board.Manufacturer); $addItem.Invoke('Product', $board.Product)
         $bios = Get-CimInstance -ClassName Win32_BIOS
-        $addHeading.Invoke('BIOS')
-        $addItem.Invoke('Manufacturer', $bios.Manufacturer)
-        $addItem.Invoke('Version', $bios.SMBIOSBIOSVersion)
+        $addHeading.Invoke('BIOS'); $addItem.Invoke('Manufacturer', $bios.Manufacturer); $addItem.Invoke('Version', $bios.SMBIOSBIOSVersion)
     }
     Populate-SystemInfo
 
@@ -455,16 +429,15 @@ function Start-DriverTool {
         
         Set-ProgressState -IsActive $true -Message "Resetting Windows Update components..."
         Update-Status "Clearing cache..."
-        $job = Start-Job -ScriptBlock { Import-Module PSWindowsUpdate; Reset-WUComponents -Silent -ErrorAction SilentlyContinue }
-        # This can be a long process, check on it
-        $timer = New-Object System.Windows.Threading.DispatcherTimer; $timer.Interval = [TimeSpan]::FromSeconds(1)
-        $timer.add_Tick({
-            if ($using:job.State -ne 'Running') {
-                $using:timer.Stop(); $result = Receive-Job $using:job; Remove-Job $using:job
+        $script:currentJob = Start-Job -ScriptBlock { Import-Module PSWindowsUpdate; Reset-WUComponents -Silent -ErrorAction SilentlyContinue }
+        $script:currentTimer = New-Object System.Windows.Threading.DispatcherTimer; $script:currentTimer.Interval = [TimeSpan]::FromSeconds(1)
+        $script:currentTimer.add_Tick({
+            if ($script:currentJob.State -ne 'Running') {
+                $script:currentTimer.Stop(); $result = Receive-Job $script:currentJob; Remove-Job $script:currentJob
                 Set-ProgressState -IsActive $false
                 Update-Status "Windows Update cache cleared successfully."
             }
-        }); $timer.Start()
+        }); $script:currentTimer.Start()
     })
     #endregion
     
